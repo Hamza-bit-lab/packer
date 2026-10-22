@@ -51,9 +51,19 @@ class BookingRepository {
     return Booking.fromJson(response['data'] as Map<String, dynamic>);
   }
 
-  Future<Booking> complete(int id, {required String proofPhotoPath}) async {
+  /// Emails a 6-digit code to the good's receiver, to be read back by
+  /// [complete] as proof a real handoff happened.
+  Future<void> sendDeliveryOtp(int id) =>
+      _client.post('/bookings/$id/send-delivery-otp', {});
+
+  Future<Booking> complete(
+    int id, {
+    required String otp,
+    required String proofPhotoPath,
+  }) async {
     final response = await _client.postMultipart('/bookings/$id/complete', {
       'inspection_confirmed': 'true',
+      'otp': otp,
     }, filePath: proofPhotoPath);
     return Booking.fromJson(response['data'] as Map<String, dynamic>);
   }

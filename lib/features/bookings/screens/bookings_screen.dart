@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api/booking_repository.dart';
@@ -11,6 +10,7 @@ import '../../../core/widgets/skeleton.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../legal/safety_disclaimer.dart';
 import '../widgets/booking_card.dart';
+import '../widgets/delivery_confirmation_flow.dart';
 import '../widgets/rate_user_dialog.dart';
 
 const _kFilterLabels = ['All', 'Pending', 'Active', 'Done'];
@@ -141,51 +141,20 @@ class _BookingsScreenState extends State<BookingsScreen> {
   }
 
   Future<void> _confirmComplete(Booking booking) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm delivery'),
-        content: const Text(
-          'Before marking this as delivered, make sure the sender has had the chance to inspect the contents in person. '
-          "You'll need to attach a photo as proof of delivery. Continue?",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Continue'),
-          ),
-        ],
-      ),
+    final result = await confirmDelivery(
+      context,
+      repository: BookingRepository(context.read<AuthProvider>().client),
+      bookingId: booking.id,
     );
-    if (confirmed != true || !mounted) return;
+    if (result == null) return;
 
-    final XFile? photo;
-    try {
-      photo = await ImagePicker().pickImage(
-        source: ImageSource.camera,
-        imageQuality: 80,
-        maxWidth: 1600,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not open the camera: $e'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-      return;
-    }
-    if (photo == null) return;
-
-    final proofPhotoPath = photo.path;
     _handle(
       booking.id,
-      (repo) => repo.complete(booking.id, proofPhotoPath: proofPhotoPath),
+      (repo) => repo.complete(
+        booking.id,
+        otp: result.otp,
+        proofPhotoPath: result.photoPath,
+      ),
     );
   }
 

@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -10,6 +9,7 @@ import '../../../core/models/good.dart';
 import '../../../core/models/trip.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/contact_actions.dart';
+import '../../../core/widgets/detail_photo_box.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../chat/screens/chat_screen.dart';
 import '../../feed/widgets/route_row.dart';
@@ -18,6 +18,7 @@ import '../../feed/widgets/verified_badge.dart';
 import '../../legal/safety_disclaimer.dart';
 import '../../profile/screens/public_profile_screen.dart';
 import '../../trips/screens/trip_form_screen.dart';
+import 'good_form_screen.dart';
 
 /// Faint brand tint, same as My Posts cards and Trip Details.
 const _cardTint = Color(0x0AFF5A46);
@@ -138,6 +139,51 @@ class _GoodDetailScreenState extends State<GoodDetailScreen> {
     return picked;
   }
 
+  Future<void> _editGood() async {
+    final saved = await Navigator.of(context).push<Good>(
+      MaterialPageRoute(builder: (_) => GoodFormScreen(good: widget.good)),
+    );
+    // The form already saved the edit server-side; just back out to My Posts
+    // so the caller's list reloads with the fresh copy.
+    if (saved != null && mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _deleteGood() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete this item?'),
+        content: const Text('This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('Delete', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await GoodRepository(
+        context.read<AuthProvider>().client,
+      ).delete(widget.good.id);
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Could not delete this item.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final good = widget.good;
@@ -146,205 +192,147 @@ class _GoodDetailScreenState extends State<GoodDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Item Details')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+      body: SafeArea(
+        top: false,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => PublicProfileScreen(userId: good.sender.id),
-                ),
-              ),
-              child: Row(
-                children: [
-                  UserAvatar(user: good.sender, size: 52),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                good.sender.name,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 17,
-                                ),
-                              ),
-                            ),
-                            if (good.sender.emailVerified) ...[
-                              const SizedBox(width: 6),
-                              const VerifiedBadge(size: 17),
-                            ],
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.star_rounded,
-                              color: AppColors.primary,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              '${good.sender.averageRating.toStringAsFixed(1)} (${good.sender.totalReviews} reviews)',
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+            Expanded(child: _buildBody(good, isMyOwnGood)),
+            isMyOwnGood ? _buildOwnerBar() : _buildOfferBar(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(Good good, bool isMyOwnGood) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => PublicProfileScreen(userId: good.sender.id),
               ),
             ),
-            if (good.photoUrl != null) ...[
-              const SizedBox(height: 20),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: CachedNetworkImage(
-                  imageUrl: good.photoUrl!,
-                  height: 180,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ],
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: _cardTint,
-                borderRadius: BorderRadius.circular(AppRadii.card),
-                border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.14),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  RouteRow(
-                    fromCity: good.fromCity,
-                    toCity: good.toCity,
-                    background: _cardTint,
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    height: 1,
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    good.itemDescription,
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 14.5,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  _DetailRow(
-                    icon: Icons.scale_outlined,
-                    label: 'Weight',
-                    value: '${good.weightKg.toStringAsFixed(1)} kg',
-                  ),
-                  const SizedBox(height: 18),
-                  _DetailRow(
-                    icon: Icons.card_giftcard_outlined,
-                    label: 'Offered reward',
-                    value:
-                        '${good.offeredReward.toStringAsFixed(0)} ${good.currencyType}',
-                  ),
-                  const SizedBox(height: 18),
-                  _DetailRow(
-                    icon: good.pickupPreference == PickupMethod.senderDelivers
-                        ? Icons.outbox_outlined
-                        : Icons.luggage_outlined,
-                    label: 'Handover at ${good.fromCity}',
-                    value: good.pickupPreference == PickupMethod.senderDelivers
-                        ? "Sender delivers it to the traveler"
-                        : 'Traveler picks it up from the sender',
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 28),
-            if (isMyOwnGood)
-              Text(
-                'This is your own item.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-              )
-            else ...[
-              if (good.senderPhoneNumber != null) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () =>
-                            callPhoneNumber(good.senderPhoneNumber!),
-                        icon: const Icon(Icons.call_rounded, size: 18),
-                        label: const Text('Call'),
+            child: Row(
+              children: [
+                UserAvatar(user: good.sender, size: 52),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              good.sender.name,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 17,
+                              ),
+                            ),
+                          ),
+                          if (good.sender.emailVerified) ...[
+                            const SizedBox(width: 6),
+                            const VerifiedBadge(size: 17),
+                          ],
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => openWhatsAppChat(
-                          good.senderPhoneNumber!,
-                          message:
-                              "Hi ${good.sender.name}, I saw your item from ${good.fromCity} to ${good.toCity} on Packer — I might be able to carry it.",
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                        ),
-                        icon: Icon(
-                          Icons.chat_rounded,
-                          size: 18,
-                          color: AppColors.primary,
-                        ),
-                        label: const Text('WhatsApp'),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.star_rounded,
+                            color: AppColors.primary,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${good.sender.averageRating.toStringAsFixed(1)} (${good.sender.totalReviews} reviews)',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 12),
               ],
-              OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ChatScreen(otherParty: good.sender),
+            ),
+          ),
+          const SizedBox(height: 20),
+          DetailPhotoBox(
+            photoUrl: good.photoUrl,
+            icon: Icons.inventory_2_outlined,
+            placeholderLabel: 'No photo added for this item',
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: _cardTint,
+              borderRadius: BorderRadius.circular(AppRadii.card),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.14),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                RouteRow(
+                  fromCity: good.fromCity,
+                  toCity: good.toCity,
+                  background: _cardTint,
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  height: 1,
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  good.itemDescription,
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14.5,
+                    height: 1.5,
                   ),
                 ),
-                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-                label: const Text('Chat on Packer'),
-              ),
-              const SizedBox(height: 14),
-              ElevatedButton(
-                onPressed: _isOffering ? null : _offerToCarry,
-                child: _isOffering
-                    ? SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.4,
-                          color: AppColors.onPrimary,
-                        ),
-                      )
-                    : const Text('Offer to Carry This Item'),
-              ),
-            ],
-            const SizedBox(height: 20),
+                const SizedBox(height: 18),
+                _DetailRow(
+                  icon: Icons.scale_outlined,
+                  label: 'Weight',
+                  value: '${good.weightKg.toStringAsFixed(1)} kg',
+                ),
+                const SizedBox(height: 18),
+                _DetailRow(
+                  icon: Icons.card_giftcard_outlined,
+                  label: 'Offered reward',
+                  value:
+                      '${good.offeredReward.toStringAsFixed(0)} ${good.currencyType}',
+                ),
+                const SizedBox(height: 18),
+                _DetailRow(
+                  icon: good.pickupPreference == PickupMethod.senderDelivers
+                      ? Icons.outbox_outlined
+                      : Icons.luggage_outlined,
+                  label: 'Handover at ${good.fromCity}',
+                  value: good.pickupPreference == PickupMethod.senderDelivers
+                      ? "Sender delivers it to the traveler"
+                      : 'Traveler picks it up from the sender',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 28),
+          if (isMyOwnGood)
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -355,10 +343,9 @@ class _GoodDetailScreenState extends State<GoodDetailScreen> {
                 ),
               ),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(
-                    Icons.info_outline_rounded,
+                    Icons.inventory_2_outlined,
                     color: AppColors.primary,
                     size: 20,
                   ),
@@ -368,7 +355,7 @@ class _GoodDetailScreenState extends State<GoodDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Flying this route already?',
+                          'This is your own item',
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 13.5,
@@ -377,34 +364,182 @@ class _GoodDetailScreenState extends State<GoodDetailScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Post your trip so senders heading the same way can find and request you directly.',
+                          'Use the buttons below to edit or remove it.',
                           style: TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 12.5,
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextButton(
-                          style: TextButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          onPressed: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const TripFormScreen(),
-                            ),
-                          ),
-                          child: const Text('Post a Trip'),
                         ),
                       ],
                     ),
                   ),
                 ],
               ),
+            )
+          else ...[
+            if (good.senderPhoneNumber != null) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => callPhoneNumber(good.senderPhoneNumber!),
+                      icon: const Icon(Icons.call_rounded, size: 18),
+                      label: const Text('Call'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => openWhatsAppChat(
+                        good.senderPhoneNumber!,
+                        message:
+                            "Hi ${good.sender.name}, I saw your item from ${good.fromCity} to ${good.toCity} on Packer — I might be able to carry it.",
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                      ),
+                      icon: Icon(
+                        Icons.chat_rounded,
+                        size: 18,
+                        color: AppColors.primary,
+                      ),
+                      label: const Text('WhatsApp'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
+            OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ChatScreen(otherParty: good.sender),
+                ),
+              ),
+              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+              label: const Text('Chat on Packer'),
             ),
           ],
-        ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: _cardTint,
+              borderRadius: BorderRadius.circular(AppRadii.card),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.14),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline_rounded,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Flying this route already?',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13.5,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Post your trip so senders heading the same way can find and request you directly.',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const TripFormScreen(),
+                          ),
+                        ),
+                        child: const Text('Post a Trip'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Fixed bottom bar for the primary action — same bottom-anchored weight
+  /// as the form screens, instead of a button that scrolls away.
+  Widget _buildOfferBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: ElevatedButton(
+        onPressed: _isOffering ? null : _offerToCarry,
+        child: _isOffering
+            ? SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.4,
+                  color: AppColors.onPrimary,
+                ),
+              )
+            : const Text('Offer to Carry This Item'),
+      ),
+    );
+  }
+
+  /// Bottom bar shown instead of [_buildOfferBar] when viewing your own
+  /// item — lets you manage it without going back to My Posts first.
+  Widget _buildOwnerBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _editGood,
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Edit'),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _deleteGood,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.error,
+                side: BorderSide(color: AppColors.error.withValues(alpha: 0.4)),
+              ),
+              icon: const Icon(Icons.delete_outline_rounded, size: 18),
+              label: const Text('Delete'),
+            ),
+          ),
+        ],
       ),
     );
   }

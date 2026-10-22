@@ -8,6 +8,7 @@ import '../../../core/models/trip.dart';
 import '../../../core/providers/preferences_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/city_field.dart';
+import '../../../core/widgets/form_section_card.dart';
 import '../../../core/widgets/photo_picker_field.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/widgets/auth_dropdown_field.dart';
@@ -209,137 +210,184 @@ class _TripFormScreenState extends State<TripFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(_isEditing ? 'Edit Trip' : 'Post a Trip')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              CityField(
-                label: 'From city',
-                icon: Icons.flight_takeoff_rounded,
-                initialValue: _fromCity,
-                onChanged: (value) => _fromCity = value,
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 14),
-              CityField(
-                label: 'To city',
-                icon: Icons.flight_land_rounded,
-                initialValue: _toCity,
-                onChanged: (value) => _toCity = value,
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 14),
-              AuthTextField(
-                label: 'Departure date & time',
-                icon: Icons.calendar_today_outlined,
-                controller: _departureController,
-                readOnly: true,
-                onTap: _pickDateTime,
-                validator: (v) => (v == null || v.isEmpty)
-                    ? 'Please pick a date & time'
-                    : null,
-              ),
-              const SizedBox(height: 14),
-              AuthTextField(
-                label: 'Airline name',
-                icon: Icons.airlines_outlined,
-                controller: _airlineController,
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 14),
-              AuthTextField(
-                label: 'Max weight available (kg)',
-                icon: Icons.scale_outlined,
-                controller: _maxWeightController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                validator: (v) => (double.tryParse(v ?? '') == null)
-                    ? 'Enter a valid number'
-                    : null,
-              ),
-              const SizedBox(height: 14),
-              AuthTextField(
-                label: 'Rate per kg',
-                icon: Icons.payments_outlined,
-                controller: _rateController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                validator: (v) => (double.tryParse(v ?? '') == null)
-                    ? 'Enter a valid number'
-                    : null,
-              ),
-              const SizedBox(height: 14),
-              AuthDropdownField(
-                label: 'Currency',
-                icon: Icons.attach_money_rounded,
-                value: _currency,
-                items: kCurrencies,
-                onChanged: (value) => setState(() => _currency = value),
-              ),
-              const SizedBox(height: 14),
-              AuthDropdownField(
-                label: 'Pickup at ${_fromCity.isEmpty ? 'origin' : _fromCity}',
-                icon: Icons.luggage_outlined,
-                value: _pickupMethodLabels[_pickupMethod],
-                items: _pickupMethodLabels.values.toList(),
-                onChanged: (label) => setState(() {
-                  _pickupMethod = _pickupMethodLabels.entries
-                      .firstWhere((e) => e.value == label)
-                      .key;
-                }),
-              ),
-              const SizedBox(height: 14),
-              AuthDropdownField(
-                label:
-                    'Delivery at ${_toCity.isEmpty ? 'destination' : _toCity}',
-                icon: Icons.local_shipping_outlined,
-                value: _deliveryMethodLabels[_deliveryMethod],
-                items: _deliveryMethodLabels.values.toList(),
-                onChanged: (label) => setState(() {
-                  _deliveryMethod = _deliveryMethodLabels.entries
-                      .firstWhere((e) => e.value == label)
-                      .key;
-                }),
-              ),
-              const SizedBox(height: 14),
-              PhotoPickerField(
-                pickedPath: _pickedPhotoPath,
-                existingUrl: widget.trip?.photoUrl,
-                onPick: _pickPhoto,
-                onClear: () => setState(() => _pickedPhotoPath = null),
-              ),
-              if (_errorMessage != null) ...[
-                const SizedBox(height: 14),
-                Text(
-                  _errorMessage!,
-                  style: TextStyle(color: AppColors.error, fontSize: 13),
-                ),
-              ],
-              const SizedBox(height: 28),
-              ElevatedButton(
-                onPressed: _isSubmitting ? null : _submit,
-                child: _isSubmitting
-                    ? SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.4,
-                          color: AppColors.onPrimary,
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      PhotoPickerField(
+                        pickedPath: _pickedPhotoPath,
+                        existingUrl: widget.trip?.photoUrl,
+                        onPick: _pickPhoto,
+                        onClear: () => setState(() => _pickedPhotoPath = null),
+                      ),
+                      const SizedBox(height: 16),
+                      FormSectionCard(
+                        title: 'ROUTE',
+                        children: [
+                          CityField(
+                            label: 'From city',
+                            icon: Icons.flight_takeoff_rounded,
+                            initialValue: _fromCity,
+                            onChanged: (value) => _fromCity = value,
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Required'
+                                : null,
+                          ),
+                          const SizedBox(height: 14),
+                          CityField(
+                            label: 'To city',
+                            icon: Icons.flight_land_rounded,
+                            initialValue: _toCity,
+                            onChanged: (value) => _toCity = value,
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Required'
+                                : null,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      FormSectionCard(
+                        title: 'FLIGHT & CAPACITY',
+                        children: [
+                          AuthTextField(
+                            label: 'Departure date & time',
+                            icon: Icons.calendar_today_outlined,
+                            controller: _departureController,
+                            readOnly: true,
+                            onTap: _pickDateTime,
+                            validator: (v) => (v == null || v.isEmpty)
+                                ? 'Please pick a date & time'
+                                : null,
+                          ),
+                          const SizedBox(height: 14),
+                          AuthTextField(
+                            label: 'Airline name',
+                            icon: Icons.airlines_outlined,
+                            controller: _airlineController,
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Required'
+                                : null,
+                          ),
+                          const SizedBox(height: 14),
+                          AuthTextField(
+                            label: 'Max weight available (kg)',
+                            icon: Icons.scale_outlined,
+                            controller: _maxWeightController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            validator: (v) => (double.tryParse(v ?? '') == null)
+                                ? 'Enter a valid number'
+                                : null,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      FormSectionCard(
+                        title: 'PRICING',
+                        children: [
+                          AuthTextField(
+                            label: 'Rate per kg',
+                            icon: Icons.payments_outlined,
+                            controller: _rateController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            validator: (v) => (double.tryParse(v ?? '') == null)
+                                ? 'Enter a valid number'
+                                : null,
+                          ),
+                          const SizedBox(height: 14),
+                          AuthDropdownField(
+                            label: 'Currency',
+                            icon: Icons.attach_money_rounded,
+                            value: _currency,
+                            items: kCurrencies,
+                            onChanged: (value) =>
+                                setState(() => _currency = value),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      FormSectionCard(
+                        title: 'HANDOFF',
+                        children: [
+                          AuthDropdownField(
+                            label:
+                                'Pickup at ${_fromCity.isEmpty ? 'origin' : _fromCity}',
+                            icon: Icons.luggage_outlined,
+                            value: _pickupMethodLabels[_pickupMethod],
+                            items: _pickupMethodLabels.values.toList(),
+                            onChanged: (label) => setState(() {
+                              _pickupMethod = _pickupMethodLabels.entries
+                                  .firstWhere((e) => e.value == label)
+                                  .key;
+                            }),
+                          ),
+                          const SizedBox(height: 14),
+                          AuthDropdownField(
+                            label:
+                                'Delivery at ${_toCity.isEmpty ? 'destination' : _toCity}',
+                            icon: Icons.local_shipping_outlined,
+                            value: _deliveryMethodLabels[_deliveryMethod],
+                            items: _deliveryMethodLabels.values.toList(),
+                            onChanged: (label) => setState(() {
+                              _deliveryMethod = _deliveryMethodLabels.entries
+                                  .firstWhere((e) => e.value == label)
+                                  .key;
+                            }),
+                          ),
+                        ],
+                      ),
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          _errorMessage!,
+                          style: TextStyle(color: AppColors.error, fontSize: 13),
                         ),
-                      )
-                    : Text(_isEditing ? 'Save Changes' : 'Post Trip'),
+                      ],
+                    ],
+                  ),
+                ),
               ),
-            ],
-          ),
+            ),
+            _buildSubmitBar(),
+          ],
         ),
+      ),
+    );
+  }
+
+  /// Fixed bottom bar for the submit button — gives this pushed form the
+  /// same bottom-anchored weight as the tabbed screens, instead of a button
+  /// that just scrolls away with the rest of the content.
+  Widget _buildSubmitBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: ElevatedButton(
+        onPressed: _isSubmitting ? null : _submit,
+        child: _isSubmitting
+            ? SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.4,
+                  color: AppColors.onPrimary,
+                ),
+              )
+            : Text(_isEditing ? 'Save Changes' : 'Post Trip'),
       ),
     );
   }

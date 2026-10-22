@@ -34,9 +34,12 @@ class SegmentedPillToggle extends StatelessWidget {
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(vertical: 9),
                   decoration: BoxDecoration(
+                    // Both ends are fully opaque (not Colors.transparent) so
+                    // the animated crossfade doesn't pass through a
+                    // semi-transparent gray mid-transition.
                     color: i == selectedIndex
                         ? AppColors.surface
-                        : Colors.transparent,
+                        : AppColors.surfaceMuted,
                     borderRadius: BorderRadius.circular(AppRadii.button),
                     boxShadow: i == selectedIndex ? AppShadows.subtle : null,
                   ),

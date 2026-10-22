@@ -17,6 +17,7 @@ import '../../notifications/screens/notification_preferences_screen.dart';
 import '../../route_alerts/screens/route_alerts_screen.dart';
 import '../widgets/currency_picker_sheet.dart';
 import '../widgets/delete_account_dialog.dart';
+import 'blocked_users_screen.dart';
 import 'edit_profile_screen.dart';
 import 'id_verification_screen.dart';
 
@@ -151,6 +152,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => const IdVerificationScreen(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _MenuRow(
+                      icon: Icons.block_rounded,
+                      label: 'Blocked Users',
+                      subtitle: 'Manage people you no longer want contact from',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const BlockedUsersScreen(),
                         ),
                       ),
                     ),

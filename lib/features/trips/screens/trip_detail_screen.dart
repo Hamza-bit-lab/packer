@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -10,6 +9,7 @@ import '../../../core/models/good.dart';
 import '../../../core/models/trip.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/contact_actions.dart';
+import '../../../core/widgets/detail_photo_box.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../chat/screens/chat_screen.dart';
 import '../../feed/screens/trip_comparison_screen.dart';
@@ -20,6 +20,7 @@ import '../../feed/widgets/verified_badge.dart';
 import '../../goods/screens/good_form_screen.dart';
 import '../../legal/safety_disclaimer.dart';
 import '../../profile/screens/public_profile_screen.dart';
+import 'trip_form_screen.dart';
 
 /// Faint brand tint, same as My Posts cards.
 const _cardTint = Color(0x0AFF5A46);
@@ -169,6 +170,51 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     return picked;
   }
 
+  Future<void> _editTrip() async {
+    final saved = await Navigator.of(context).push<Trip>(
+      MaterialPageRoute(builder: (_) => TripFormScreen(trip: widget.trip)),
+    );
+    // The form already saved the edit server-side; just back out to My Posts
+    // so the caller's list reloads with the fresh copy.
+    if (saved != null && mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _deleteTrip() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete this trip?'),
+        content: const Text('This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('Delete', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await TripRepository(
+        context.read<AuthProvider>().client,
+      ).delete(widget.trip.id);
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Could not delete this trip.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final trip = widget.trip;
@@ -177,93 +223,171 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Trip Details')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+      body: SafeArea(
+        top: false,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => PublicProfileScreen(userId: trip.traveler.id),
-                ),
+            Expanded(child: _buildBody(trip, isMyOwnTrip)),
+            isMyOwnTrip ? _buildOwnerBar() : _buildRequestBar(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(Trip trip, bool isMyOwnTrip) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => PublicProfileScreen(userId: trip.traveler.id),
               ),
-              child: Row(
-                children: [
-                  UserAvatar(user: trip.traveler, size: 52),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                trip.traveler.name,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 17,
-                                ),
+            ),
+            child: Row(
+              children: [
+                UserAvatar(user: trip.traveler, size: 52),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              trip.traveler.name,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 17,
                               ),
                             ),
-                            if (trip.traveler.emailVerified) ...[
-                              const SizedBox(width: 6),
-                              const VerifiedBadge(size: 17),
-                            ],
+                          ),
+                          if (trip.traveler.emailVerified) ...[
+                            const SizedBox(width: 6),
+                            const VerifiedBadge(size: 17),
                           ],
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.star_rounded,
-                              color: AppColors.primary,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              '${trip.traveler.averageRating.toStringAsFixed(1)} (${trip.traveler.totalReviews} reviews)',
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (trip.traveler.completedDeliveriesCount > 0) ...[
-                          const SizedBox(height: 2),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.star_rounded,
+                            color: AppColors.primary,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 3),
                           Text(
-                            '${trip.traveler.completedDeliveriesCount} deliveries completed',
+                            '${trip.traveler.averageRating.toStringAsFixed(1)} (${trip.traveler.totalReviews} reviews)',
                             style: TextStyle(
                               color: AppColors.textSecondary,
-                              fontSize: 12.5,
+                              fontSize: 13,
                             ),
                           ),
                         ],
+                      ),
+                      if (trip.traveler.completedDeliveriesCount > 0) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          '${trip.traveler.completedDeliveriesCount} deliveries completed',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12.5,
+                          ),
+                        ),
                       ],
-                    ),
+                    ],
                   ),
-                ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          DetailPhotoBox(
+            photoUrl: trip.photoUrl,
+            icon: Icons.flight_outlined,
+            placeholderLabel: 'No photo added for this trip',
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: _cardTint,
+              borderRadius: BorderRadius.circular(AppRadii.card),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.14),
               ),
             ),
-            if (trip.photoUrl != null) ...[
-              const SizedBox(height: 20),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: CachedNetworkImage(
-                  imageUrl: trip.photoUrl!,
-                  height: 180,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                RouteRow(
+                  fromCity: trip.fromCity,
+                  toCity: trip.toCity,
+                  background: _cardTint,
                 ),
-              ),
-            ],
-            const SizedBox(height: 20),
+                const SizedBox(height: 16),
+                Container(
+                  height: 1,
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                ),
+                const SizedBox(height: 18),
+                _DetailRow(
+                  icon: Icons.calendar_today_outlined,
+                  label: 'Departure',
+                  value:
+                      '${formatShortDate(trip.departureDateTime)}, ${trip.departureDateTime.toLocal().hour}:${trip.departureDateTime.toLocal().minute.toString().padLeft(2, '0')}',
+                ),
+                const SizedBox(height: 18),
+                _DetailRow(
+                  icon: Icons.flight_rounded,
+                  label: 'Airline',
+                  value: trip.airlineName,
+                ),
+                const SizedBox(height: 18),
+                _DetailRow(
+                  icon: Icons.scale_outlined,
+                  label: 'Weight available',
+                  value: '${trip.maxWeightKg.toStringAsFixed(1)} kg',
+                ),
+                const SizedBox(height: 18),
+                _DetailRow(
+                  icon: Icons.payments_outlined,
+                  label: 'Rate',
+                  value:
+                      '${trip.ratePerKg.toStringAsFixed(0)} ${trip.currencyType} / kg',
+                ),
+                const SizedBox(height: 18),
+                _DetailRow(
+                  icon: trip.pickupMethod == PickupMethod.travelerPicksUp
+                      ? Icons.luggage_outlined
+                      : Icons.outbox_outlined,
+                  label: 'Pickup at ${trip.fromCity}',
+                  value: trip.pickupMethod == PickupMethod.travelerPicksUp
+                      ? "Traveler collects it themselves"
+                      : 'Sender delivers it to the traveler',
+                ),
+                const SizedBox(height: 18),
+                _DetailRow(
+                  icon: trip.deliveryMethod == DeliveryMethod.travelerDelivers
+                      ? Icons.delivery_dining_rounded
+                      : Icons.storefront_outlined,
+                  label: 'Delivery',
+                  value: trip.deliveryMethod.label,
+                ),
+              ],
+            ),
+          ),
+          if (_otherTripsOnRoute.isNotEmpty) ...[
+            const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: _cardTint,
                 borderRadius: BorderRadius.circular(AppRadii.card),
@@ -271,193 +395,205 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                   color: AppColors.primary.withValues(alpha: 0.14),
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  RouteRow(
-                    fromCity: trip.fromCity,
-                    toCity: trip.toCity,
-                    background: _cardTint,
+                  Icon(
+                    Icons.compare_arrows_rounded,
+                    color: AppColors.primary,
+                    size: 20,
                   ),
-                  const SizedBox(height: 16),
-                  Container(
-                    height: 1,
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                  ),
-                  const SizedBox(height: 18),
-                  _DetailRow(
-                    icon: Icons.calendar_today_outlined,
-                    label: 'Departure',
-                    value:
-                        '${formatShortDate(trip.departureDateTime)}, ${trip.departureDateTime.toLocal().hour}:${trip.departureDateTime.toLocal().minute.toString().padLeft(2, '0')}',
-                  ),
-                  const SizedBox(height: 18),
-                  _DetailRow(
-                    icon: Icons.flight_rounded,
-                    label: 'Airline',
-                    value: trip.airlineName,
-                  ),
-                  const SizedBox(height: 18),
-                  _DetailRow(
-                    icon: Icons.scale_outlined,
-                    label: 'Weight available',
-                    value: '${trip.maxWeightKg.toStringAsFixed(1)} kg',
-                  ),
-                  const SizedBox(height: 18),
-                  _DetailRow(
-                    icon: Icons.payments_outlined,
-                    label: 'Rate',
-                    value:
-                        '${trip.ratePerKg.toStringAsFixed(0)} ${trip.currencyType} / kg',
-                  ),
-                  const SizedBox(height: 18),
-                  _DetailRow(
-                    icon: trip.pickupMethod == PickupMethod.travelerPicksUp
-                        ? Icons.luggage_outlined
-                        : Icons.outbox_outlined,
-                    label: 'Pickup at ${trip.fromCity}',
-                    value: trip.pickupMethod == PickupMethod.travelerPicksUp
-                        ? "Traveler collects it themselves"
-                        : 'Sender delivers it to the traveler',
-                  ),
-                  const SizedBox(height: 18),
-                  _DetailRow(
-                    icon: trip.deliveryMethod == DeliveryMethod.travelerDelivers
-                        ? Icons.delivery_dining_rounded
-                        : Icons.storefront_outlined,
-                    label: 'Delivery',
-                    value: trip.deliveryMethod.label,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${_otherTripsOnRoute.length} more ${_otherTripsOnRoute.length == 1 ? 'traveler is' : 'travelers are'} also flying ${trip.fromCity} → ${trip.toCity}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13.5,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Compare their price, timing, space, and rating before choosing.',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12.5,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            minimumSize: Size.zero,
+                          ),
+                          onPressed: _openComparison,
+                          child: const Text('Compare Prices'),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-            if (_otherTripsOnRoute.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: _cardTint,
-                  borderRadius: BorderRadius.circular(AppRadii.card),
-                  border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.14),
-                  ),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.compare_arrows_rounded,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${_otherTripsOnRoute.length} more ${_otherTripsOnRoute.length == 1 ? 'traveler is' : 'travelers are'} also flying ${trip.fromCity} → ${trip.toCity}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13.5,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Compare their price, timing, space, and rating before choosing.',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 12.5,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              minimumSize: Size.zero,
-                            ),
-                            onPressed: _openComparison,
-                            child: const Text('Compare Prices'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 28),
-            if (isMyOwnTrip)
-              Text(
-                'This is your own trip.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-              )
-            else ...[
-              if (trip.travelerPhoneNumber != null) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () =>
-                            callPhoneNumber(trip.travelerPhoneNumber!),
-                        icon: const Icon(Icons.call_rounded, size: 18),
-                        label: const Text('Call'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => openWhatsAppChat(
-                          trip.travelerPhoneNumber!,
-                          message:
-                              "Hi ${trip.traveler.name}, I saw your trip from ${trip.fromCity} to ${trip.toCity} on Packer.",
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                        ),
-                        icon: Icon(
-                          Icons.chat_rounded,
-                          size: 18,
-                          color: AppColors.primary,
-                        ),
-                        label: const Text('WhatsApp'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-              ],
-              OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ChatScreen(otherParty: trip.traveler),
-                  ),
-                ),
-                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-                label: const Text('Chat on Packer'),
-              ),
-              const SizedBox(height: 14),
-              ElevatedButton(
-                onPressed: _isRequesting ? null : _requestToShip,
-                child: _isRequesting
-                    ? SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.4,
-                          color: AppColors.onPrimary,
-                        ),
-                      )
-                    : const Text('Request to Ship an Item'),
-              ),
-            ],
           ],
-        ),
+          const SizedBox(height: 28),
+          if (isMyOwnTrip)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _cardTint,
+                borderRadius: BorderRadius.circular(AppRadii.card),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.14),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.flight_outlined,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'This is your own trip',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13.5,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Use the buttons below to edit or remove it.',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            if (trip.travelerPhoneNumber != null) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () =>
+                          callPhoneNumber(trip.travelerPhoneNumber!),
+                      icon: const Icon(Icons.call_rounded, size: 18),
+                      label: const Text('Call'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => openWhatsAppChat(
+                        trip.travelerPhoneNumber!,
+                        message:
+                            "Hi ${trip.traveler.name}, I saw your trip from ${trip.fromCity} to ${trip.toCity} on Packer.",
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                      ),
+                      icon: Icon(
+                        Icons.chat_rounded,
+                        size: 18,
+                        color: AppColors.primary,
+                      ),
+                      label: const Text('WhatsApp'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
+            OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ChatScreen(otherParty: trip.traveler),
+                ),
+              ),
+              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+              label: const Text('Chat on Packer'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Fixed bottom bar for the primary action — same bottom-anchored weight
+  /// as the form screens, instead of a button that scrolls away.
+  Widget _buildRequestBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: ElevatedButton(
+        onPressed: _isRequesting ? null : _requestToShip,
+        child: _isRequesting
+            ? SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.4,
+                  color: AppColors.onPrimary,
+                ),
+              )
+            : const Text('Request to Ship an Item'),
+      ),
+    );
+  }
+
+  /// Bottom bar shown instead of [_buildRequestBar] when viewing your own
+  /// trip — lets you manage it without going back to My Posts first.
+  Widget _buildOwnerBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _editTrip,
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Edit'),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _deleteTrip,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.error,
+                side: BorderSide(color: AppColors.error.withValues(alpha: 0.4)),
+              ),
+              icon: const Icon(Icons.delete_outline_rounded, size: 18),
+              label: const Text('Delete'),
+            ),
+          ),
+        ],
       ),
     );
   }

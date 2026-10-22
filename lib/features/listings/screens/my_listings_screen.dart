@@ -211,8 +211,15 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
       color: AppColors.primary,
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
-        itemCount: itemCount,
+        itemCount: itemCount + 1,
         itemBuilder: (context, index) {
+          if (index == itemCount) {
+            return _AddAnotherTip(
+              showingTrips: _showingTrips,
+              onTap: _createNew,
+            );
+          }
+
           return Padding(
             padding: const EdgeInsets.only(bottom: 14),
             child: _showingTrips
@@ -238,6 +245,67 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                   ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// Trailing nudge shown after the last card — fills the empty space below a
+/// short list instead of leaving it blank, and points at the FAB.
+class _AddAnotherTip extends StatelessWidget {
+  const _AddAnotherTip({required this.showingTrips, required this.onTap});
+
+  final bool showingTrips;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0x0AFF5A46),
+      borderRadius: BorderRadius.circular(AppRadii.card),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadii.card),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadii.card),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.14),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.add_rounded,
+                  color: AppColors.onPrimary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  showingTrips
+                      ? 'Got another trip? Post it to reach more senders.'
+                      : 'Got another item to send? Post it here.',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

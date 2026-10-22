@@ -7,6 +7,7 @@ class Good {
     required this.fromCity,
     required this.toCity,
     required this.itemDescription,
+    this.receiverEmail,
     required this.weightKg,
     required this.offeredReward,
     required this.currencyType,
@@ -23,6 +24,9 @@ class Good {
       fromCity: json['from_city'] as String,
       toCity: json['to_city'] as String,
       itemDescription: json['item_description'] as String,
+      // Only ever sent back to the good's own sender — null for everyone
+      // else (see GoodResource).
+      receiverEmail: json['receiver_email'] as String?,
       weightKg: (json['weight_kg'] as num).toDouble(),
       offeredReward: (json['offered_reward'] as num).toDouble(),
       currencyType: json['currency_type'] as String,
@@ -40,6 +44,7 @@ class Good {
   final String fromCity;
   final String toCity;
   final String itemDescription;
+  final String? receiverEmail;
   final double weightKg;
   final double offeredReward;
   final String currencyType;
