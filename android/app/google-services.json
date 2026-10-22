@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "571605457687",
+    "project_id": "packer-36524",
+    "storage_bucket": "packer-36524.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:571605457687:android:225d423573a603e7c33552",
+        "android_client_info": {
+          "package_name": "com.packandcarry.pack_and_carry"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCv_qEqyjwgfjDy6y0vdo86-sIJIFPP1Sg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark-mode variant of ../drawable/launch_background.xml — keeps the
+     native splash (shown before the Flutter engine draws its first frame)
+     from flashing a light background on a device set to dark mode. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/windowBackground" />
+</layer-list>
