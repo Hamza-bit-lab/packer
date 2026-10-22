@@ -52,16 +52,20 @@ void main() {
     await tester.ensureVisible(find.text('Reset Password'));
     await tester.tap(find.text('Reset Password'));
     await tester.pump();
-    expect(find.text('Enter the 6-digit code'), findsOneWidget);
+    expect(find.text('Enter the 6-digit code.'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, '123456');
+    await tester.tap(find.text('Reset Password'));
+    await tester.pump();
     expect(find.text('Password is required'), findsOneWidget);
 
-    await tester.enterText(find.byType(TextFormField).at(1), 'short');
+    await tester.enterText(find.byType(TextFormField).at(0), 'short');
     await tester.tap(find.text('Reset Password'));
     await tester.pump();
     expect(find.text('Use at least 8 characters'), findsOneWidget);
 
-    await tester.enterText(find.byType(TextFormField).at(1), 'long-enough-1');
-    await tester.enterText(find.byType(TextFormField).at(2), 'different-1');
+    await tester.enterText(find.byType(TextFormField).at(0), 'long-enough-1');
+    await tester.enterText(find.byType(TextFormField).at(1), 'different-1');
     await tester.tap(find.text('Reset Password'));
     await tester.pump();
     expect(find.text('Passwords do not match'), findsOneWidget);

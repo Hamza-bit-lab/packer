@@ -65,13 +65,17 @@ class _OtpBoxFieldState extends State<OtpBoxField> {
         alignment: Alignment.center,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               for (var i = 0; i < widget.length; i++) ...[
                 if (i > 0) const SizedBox(width: 8),
-                _DigitBox(
-                  digit: i < text.length ? text[i] : '',
-                  isActive: _focusNode.hasFocus && i == text.length,
+                Expanded(
+                  child: AspectRatio(
+                    aspectRatio: 44 / 54,
+                    child: _DigitBox(
+                      digit: i < text.length ? text[i] : '',
+                      isActive: _focusNode.hasFocus && i == text.length,
+                    ),
+                  ),
                 ),
               ],
             ],
@@ -111,8 +115,6 @@ class _DigitBox extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 120),
-      width: 44,
-      height: 54,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: AppColors.field,

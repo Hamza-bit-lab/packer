@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/api/auth_repository.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/otp_box_field.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/auth_header.dart';
 import '../widgets/auth_text_field.dart';
@@ -45,6 +46,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   }
 
   Future<void> _submit() async {
+    if (_codeController.text.trim().length != 6) {
+      _showError('Enter the 6-digit code.');
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSubmitting = true);
@@ -77,7 +82,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       final client = context.read<AuthProvider>().client;
       final message = await AuthRepository(client).forgotPassword(widget.email);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
       _showError(e);
     } finally {
@@ -124,25 +131,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        TextFormField(
-                          controller: _codeController,
-                          keyboardType: TextInputType.number,
-                          maxLength: 6,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 12,
-                            color: AppColors.textPrimary,
-                          ),
-                          decoration: const InputDecoration(
-                            counterText: '',
-                            hintText: '••••••',
-                          ),
-                          validator: (value) => (value ?? '').trim().length != 6
-                              ? 'Enter the 6-digit code'
-                              : null,
-                        ),
+                        OtpBoxField(controller: _codeController),
                         const SizedBox(height: 16),
                         AuthTextField(
                           label: 'New password',
@@ -166,7 +155,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                           controller: _confirmController,
                           obscureText: true,
                           textInputAction: TextInputAction.done,
-                          validator: (value) => value != _passwordController.text
+                          validator: (value) =>
+                              value != _passwordController.text
                               ? 'Passwords do not match'
                               : null,
                         ),

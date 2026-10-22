@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/api/auth_repository.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/otp_box_field.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/auth_header.dart';
 
@@ -112,21 +113,13 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    TextField(
+                    OtpBoxField(
                       controller: _codeController,
-                      keyboardType: TextInputType.number,
-                      maxLength: 6,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 12,
-                      ),
-                      decoration: const InputDecoration(
-                        counterText: '',
-                        hintText: '••••••',
-                      ),
-                      onSubmitted: (_) => _verify(),
+                      autofocus: true,
+                      onChanged: (_) => setState(() {}),
+                      onSubmitted: (value) {
+                        if (value.trim().length == 6) _verify();
+                      },
                     ),
                     if (_errorMessage != null) ...[
                       const SizedBox(height: 8),
