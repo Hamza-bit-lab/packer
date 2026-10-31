@@ -92,6 +92,10 @@ class AuthProvider extends ChangeNotifier {
     return _submit(() => _repository.login(email: email, password: password));
   }
 
+  Future<bool> loginWithGoogle(String idToken) {
+    return _submit(() => _repository.loginWithGoogle(idToken));
+  }
+
   Future<bool> register({
     required String name,
     required String email,

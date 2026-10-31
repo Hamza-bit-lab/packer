@@ -1,4 +1,4 @@
-package com.packandcarry.pack_and_carry
+package com.zyntaxes.packer
 
 import io.flutter.embedding.android.FlutterActivity
 

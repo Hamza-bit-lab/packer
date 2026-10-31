@@ -32,6 +32,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '571605457687',
     projectId: 'packer-36524',
     storageBucket: 'packer-36524.firebasestorage.app',
-    iosBundleId: 'com.packandcarry.packAndCarry',
+    iosBundleId: 'com.zyntaxes.packer',
   );
 }

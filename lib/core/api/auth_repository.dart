@@ -50,6 +50,15 @@ class AuthRepository {
     );
   }
 
+  Future<AuthResult> loginWithGoogle(String idToken) async {
+    final response = await _client.post('/auth/google', {'id_token': idToken});
+
+    return AuthResult(
+      user: User.fromJson(response['user'] as Map<String, dynamic>),
+      token: response['token'] as String,
+    );
+  }
+
   Future<User> me() async {
     final response = await _client.get('/me');
     return User.fromJson(response['data'] as Map<String, dynamic>);
@@ -85,12 +94,11 @@ class AuthRepository {
   }
 
   /// Permanently deletes the signed-in account.
-  Future<void> deleteAccount(String password) =>
-      _client.delete(
-        '/me',
-        body: {'password': password},
-        expireSessionOn401: false,
-      );
+  Future<void> deleteAccount(String password) => _client.delete(
+    '/me',
+    body: {'password': password},
+    expireSessionOn401: false,
+  );
 
   Future<User> verifyEmail(String code) async {
     final response = await _client.post('/auth/verify-email', {'code': code});

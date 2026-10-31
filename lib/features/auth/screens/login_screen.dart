@@ -3,9 +3,11 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
+import '../services/google_auth_service.dart';
 import '../widgets/auth_header.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/fade_slide_in.dart';
+import '../widgets/google_logo.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
@@ -20,6 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _isGoogleSubmitting = false;
 
   @override
   void dispose() {
@@ -44,6 +47,37 @@ class _LoginScreenState extends State<LoginScreen> {
           backgroundColor: AppColors.error,
         ),
       );
+    }
+  }
+
+  Future<void> _continueWithGoogle() async {
+    setState(() => _isGoogleSubmitting = true);
+
+    try {
+      final idToken = await GoogleAuthService.signIn();
+      if (idToken == null || !mounted) return;
+
+      final auth = context.read<AuthProvider>();
+      final success = await auth.loginWithGoogle(idToken);
+
+      if (!success && mounted && auth.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(auth.errorMessage!),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Google sign-in failed: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isGoogleSubmitting = false);
     }
   }
 
@@ -135,6 +169,49 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 )
                               : const Text('Log In'),
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(child: Divider(color: AppColors.border)),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              child: Text(
+                                'OR',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            Expanded(child: Divider(color: AppColors.border)),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        OutlinedButton(
+                          onPressed: (isSubmitting || _isGoogleSubmitting)
+                              ? null
+                              : _continueWithGoogle,
+                          child: _isGoogleSubmitting
+                              ? SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                )
+                              : Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const GoogleLogo(size: 18),
+                                    const SizedBox(width: 10),
+                                    const Text('Continue with Google'),
+                                  ],
+                                ),
                         ),
                         const SizedBox(height: 24),
                         Wrap(
